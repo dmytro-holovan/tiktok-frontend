@@ -45,6 +45,7 @@ import type {
   PlatformAccount,
   PublicWidget,
   StreamState,
+  TikTokBestGift,
   Widget,
   WidgetEvent,
   WidgetType,
@@ -722,6 +723,7 @@ function WidgetManager({ token, widgets }: { token: string; widgets: Widget[] })
             <option value="LIKE_GOAL">Like goal</option>
             <option value="GIFT_TRIGGER">Gift trigger</option>
             <option value="EVENT_FEED">Event feed</option>
+            <option value="TIKTOK_BEST_GIFT">TikTok best gift</option>
           </select>
         </label>
         <label>
@@ -822,6 +824,24 @@ function WidgetPreviewPage() {
     };
   }, [publicToken]);
 
+  const isTransparentWidget = widgetQuery.data?.type === "TIKTOK_BEST_GIFT";
+
+  useEffect(() => {
+    document.documentElement.classList.toggle(
+      "transparent-widget-page",
+      Boolean(isTransparentWidget),
+    );
+    document.body.classList.toggle(
+      "transparent-widget-page",
+      Boolean(isTransparentWidget),
+    );
+
+    return () => {
+      document.documentElement.classList.remove("transparent-widget-page");
+      document.body.classList.remove("transparent-widget-page");
+    };
+  }, [isTransparentWidget]);
+
   if (widgetQuery.isLoading) {
     return <WidgetFrame title="Loading" />;
   }
@@ -831,17 +851,23 @@ function WidgetPreviewPage() {
   }
 
   return (
-    <WidgetFrame title={widgetQuery.data.name} widget={widgetQuery.data}>
+    <WidgetFrame
+      title={widgetQuery.data.name}
+      widget={widgetQuery.data}
+      transparent={isTransparentWidget}
+    >
       <WidgetRenderer widget={widgetQuery.data} events={events} />
-      <button
-        className="icon-button preview-demo"
-        type="button"
-        onClick={() => demoMutation.mutate()}
-        disabled={demoMutation.isPending}
-      >
-        <Wand2 size={16} />
-        Demo
-      </button>
+      {!isTransparentWidget && (
+        <button
+          className="icon-button preview-demo"
+          type="button"
+          onClick={() => demoMutation.mutate()}
+          disabled={demoMutation.isPending}
+        >
+          <Wand2 size={16} />
+          Demo
+        </button>
+      )}
     </WidgetFrame>
   );
 }
@@ -850,18 +876,22 @@ function WidgetFrame({
   title,
   widget,
   children,
+  transparent = false,
 }: {
   title: string;
   widget?: PublicWidget;
   children?: ReactNode;
+  transparent?: boolean;
 }) {
   return (
-    <main className="widget-preview">
-      <section className="overlay-widget">
-        <div className="overlay-head">
-          <span>{widget ? formatWidgetType(widget.type) : "Widget"}</span>
-          <strong>{title}</strong>
-        </div>
+    <main className={`widget-preview ${transparent ? "widget-preview-transparent" : ""}`}>
+      <section className={`overlay-widget ${transparent ? "overlay-widget-transparent" : ""}`}>
+        {!transparent && (
+          <div className="overlay-head">
+            <span>{widget ? formatWidgetType(widget.type) : "Widget"}</span>
+            <strong>{title}</strong>
+          </div>
+        )}
         {children}
       </section>
     </main>
@@ -911,6 +941,35 @@ function WidgetRenderer({
     );
   }
 
+  if (widget.type === "TIKTOK_BEST_GIFT") {
+    const gift =
+      latestEvent?.type === "widget.tiktokBestGift.updated"
+        ? readTikTokBestGiftFromPayload(latestEvent.payload)
+        : widget.currentStream?.bestGift ?? null;
+    const viewerName =
+      gift?.viewer?.nickname ?? gift?.viewer?.uniqueId ?? "Waiting for gift";
+    const giftName = gift?.giftName ?? "Best gift";
+    const totalDiamonds = gift?.totalDiamonds ?? 0;
+
+    return (
+      <div className="best-gift-widget">
+        <div className="best-gift-visual">
+          {gift?.giftImageUrl ? (
+            <img src={gift.giftImageUrl} alt={giftName} />
+          ) : (
+            <Gift size={74} strokeWidth={1.8} />
+          )}
+        </div>
+        <strong>{giftName}</strong>
+        <span className="best-gift-value">
+          {totalDiamonds.toLocaleString()} diamonds
+          {gift?.repeatCount ? ` · x${gift.repeatCount}` : ""}
+        </span>
+        <span className="best-gift-viewer">{viewerName}</span>
+      </div>
+    );
+  }
+
   return (
     <div className="feed-widget">
       <MessageSquare size={24} />
@@ -924,6 +983,58 @@ function WidgetRenderer({
       </div>
     </div>
   );
+}
+
+function readTikTokBestGiftFromPayload(
+  payload: Record<string, unknown>,
+): TikTokBestGift | null {
+  const totalDiamonds = readNumber(payload.totalDiamonds);
+  const giftName = readString(payload.giftName);
+  const giftImageUrl = readString(payload.giftImageUrl);
+  const viewer = readRecord(payload.viewer);
+
+  if (!giftName && !giftImageUrl && totalDiamonds === undefined) {
+    return null;
+  }
+
+  return {
+    streamId: readString(payload.streamId) ?? "",
+    giftId: readString(payload.giftId),
+    giftName,
+    giftImageUrl,
+    repeatCount: readNumber(payload.repeatCount) ?? 1,
+    diamondCount: readNumber(payload.diamondCount),
+    totalDiamonds: totalDiamonds ?? 0,
+    eventTs: readString(payload.eventTs),
+    createdAt: readString(payload.createdAt),
+    viewer: viewer
+      ? {
+          id: readString(viewer.id),
+          uniqueId: readString(viewer.uniqueId),
+          nickname: readString(viewer.nickname),
+          avatarUrl: readString(viewer.avatarUrl),
+        }
+      : null,
+  };
+}
+
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function readString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function readNumber(value: unknown) {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : undefined;
 }
 
 function StatusBadge({ status }: { status: StreamState["status"] }) {

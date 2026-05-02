@@ -18,7 +18,29 @@ export type StreamStatus =
   | "OFFLINE"
   | "ERROR";
 
-export type WidgetType = "LIKE_GOAL" | "GIFT_TRIGGER" | "EVENT_FEED";
+export type WidgetType =
+  | "LIKE_GOAL"
+  | "GIFT_TRIGGER"
+  | "EVENT_FEED"
+  | "TIKTOK_BEST_GIFT";
+
+export interface TikTokBestGift {
+  streamId: string;
+  giftId?: string | null;
+  giftName?: string | null;
+  giftImageUrl?: string | null;
+  repeatCount: number;
+  diamondCount?: number | null;
+  totalDiamonds: number;
+  eventTs?: string | null;
+  createdAt?: string | null;
+  viewer?: {
+    id?: string | null;
+    uniqueId?: string | null;
+    nickname?: string | null;
+    avatarUrl?: string | null;
+  } | null;
+}
 
 export interface User {
   id: string;
@@ -103,6 +125,7 @@ export interface PublicWidget {
     status: StreamStatus;
     totalLikes: number;
     lastLikeEventAt?: string | null;
+    bestGift?: TikTokBestGift | null;
   } | null;
 }
 

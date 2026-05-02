@@ -547,6 +547,17 @@ button {
   background: #0b1020;
 }
 
+html.transparent-widget-page,
+html.transparent-widget-page body,
+html.transparent-widget-page #root {
+  background: transparent;
+}
+
+.widget-preview-transparent {
+  padding: 0;
+  background: transparent;
+}
+
 .overlay-widget {
   width: min(480px, 100%);
   min-height: 220px;
@@ -558,6 +569,15 @@ button {
   display: grid;
   gap: 18px;
   align-content: start;
+}
+
+.overlay-widget-transparent {
+  width: min(300px, 100vw);
+  min-height: 0;
+  padding: 10px;
+  color: #ffffff;
+  background: transparent;
+  border: 0;
 }
 
 .overlay-head {
@@ -604,6 +624,52 @@ button {
 .gift-widget span {
   color: #fde68a;
   font-weight: 800;
+}
+
+.best-gift-widget {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  text-align: center;
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.78);
+}
+
+.best-gift-visual {
+  width: 132px;
+  height: 132px;
+  display: grid;
+  place-items: center;
+  color: #fef3c7;
+}
+
+.best-gift-visual img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.45));
+}
+
+.best-gift-widget strong {
+  max-width: 100%;
+  color: #ffffff;
+  font-size: 23px;
+  line-height: 1.1;
+  font-weight: 900;
+}
+
+.best-gift-value,
+.best-gift-viewer {
+  max-width: 100%;
+  color: #fef3c7;
+  font-size: 15px;
+  line-height: 1.25;
+  font-weight: 800;
+}
+
+.best-gift-viewer {
+  color: #ffffff;
+  font-size: 17px;
 }
 
 .feed-widget {
