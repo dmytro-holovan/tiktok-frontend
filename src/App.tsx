@@ -15,6 +15,8 @@ import {
   Cable,
   CircleOff,
   Copy,
+  Check,
+  Edit3,
   Gift,
   Heart,
   LogOut,
@@ -26,6 +28,8 @@ import {
   Settings,
   ShieldCheck,
   Square,
+  Trash2,
+  X,
   UserRound,
   Wand2,
 } from "lucide-react";
@@ -429,7 +433,11 @@ function AccountList({
   onConnect: (stream: LiveStream) => void;
 }) {
   const queryClient = useQueryClient();
-  const mutation = useMutation({
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftHandle, setDraftHandle] = useState("");
+  const [draftDisplayName, setDraftDisplayName] = useState("");
+
+  const connectMutation = useMutation({
     mutationFn: (platformAccountId: string) => api.connectStream(token, platformAccountId),
     onSuccess: (stream) => {
       onConnect(stream);
@@ -437,30 +445,121 @@ function AccountList({
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: (account: PlatformAccount) =>
+      api.updatePlatformAccount(token, account.id, {
+        handle: draftHandle,
+        displayName: draftDisplayName || undefined,
+      }),
+    onSuccess: () => {
+      setEditingId(null);
+      void queryClient.invalidateQueries({ queryKey: ["cabinet"] });
+      void queryClient.invalidateQueries({ queryKey: ["streams"] });
+      void queryClient.invalidateQueries({ queryKey: ["stream-state"] });
+    },
+  });
+
+  const startEdit = (account: PlatformAccount) => {
+    setEditingId(account.id);
+    setDraftHandle(account.handle);
+    setDraftDisplayName(account.displayName ?? "");
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setDraftHandle("");
+    setDraftDisplayName("");
+  };
+
   if (!accounts.length) {
     return <EmptyState icon={<UserRound size={22} />} label="No platform accounts" />;
   }
 
   return (
     <div className="list">
-      {accounts.map((account) => (
-        <div className="row-item" key={account.id}>
-          <div>
-            <strong>@{account.handle}</strong>
-            <span>{account.displayName ?? account.platform}</span>
+      {accounts.map((account) => {
+        const isEditing = editingId === account.id;
+
+        return (
+          <div className="row-item account-row" key={account.id}>
+            {isEditing ? (
+              <form
+                className="account-edit-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  updateMutation.mutate(account);
+                }}
+              >
+                <label>
+                  <span>TikTok handle</span>
+                  <input
+                    value={draftHandle}
+                    onChange={(event) => setDraftHandle(event.target.value)}
+                    placeholder="@username"
+                    required
+                  />
+                </label>
+                <label>
+                  <span>Name</span>
+                  <input
+                    value={draftDisplayName}
+                    onChange={(event) => setDraftDisplayName(event.target.value)}
+                    placeholder="Main channel"
+                  />
+                </label>
+                <div className="account-actions">
+                  <button
+                    className="icon-button command-button"
+                    type="submit"
+                    disabled={updateMutation.isPending}
+                  >
+                    <Check size={17} />
+                    Save
+                  </button>
+                  <button
+                    className="ghost-button"
+                    type="button"
+                    onClick={cancelEdit}
+                    disabled={updateMutation.isPending}
+                  >
+                    <X size={17} />
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <div>
+                  <strong>@{account.handle}</strong>
+                  <span>{account.displayName ?? account.platform}</span>
+                </div>
+                <div className="account-actions">
+                  <button
+                    className="ghost-button"
+                    type="button"
+                    disabled={connectMutation.isPending || updateMutation.isPending}
+                    onClick={() => startEdit(account)}
+                  >
+                    <Edit3 size={17} />
+                    Edit
+                  </button>
+                  <button
+                    className="icon-button command-button"
+                    type="button"
+                    disabled={connectMutation.isPending || updateMutation.isPending}
+                    onClick={() => connectMutation.mutate(account.id)}
+                  >
+                    <Play size={17} />
+                    Connect
+                  </button>
+                </div>
+              </>
+            )}
           </div>
-          <button
-            className="icon-button command-button"
-            type="button"
-            disabled={mutation.isPending}
-            onClick={() => mutation.mutate(account.id)}
-          >
-            <Play size={17} />
-            Connect
-          </button>
-        </div>
-      ))}
-      {mutation.error && <p className="form-error">{mutation.error.message}</p>}
+        );
+      })}
+      {connectMutation.error && <p className="form-error">{connectMutation.error.message}</p>}
+      {updateMutation.error && <p className="form-error">{updateMutation.error.message}</p>}
     </div>
   );
 }
@@ -536,6 +635,14 @@ function StreamStatePanel({
           </dd>
         </div>
         <div>
+          <dt>Total likes</dt>
+          <dd>{state.totalLikes.toLocaleString()}</dd>
+        </div>
+        <div>
+          <dt>Last like</dt>
+          <dd>{formatDate(state.lastLikeEventAt)}</dd>
+        </div>
+        <div>
           <dt>Next retry</dt>
           <dd>{formatDate(state.nextReconnectAt)}</dd>
         </div>
@@ -580,6 +687,24 @@ function WidgetManager({ token, widgets }: { token: string; widgets: Widget[] })
   const demoMutation = useMutation({
     mutationFn: (widgetId: string) => api.demoWidget(token, widgetId),
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: (widgetId: string) => api.deleteWidget(token, widgetId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["widgets"] });
+      void queryClient.invalidateQueries({ queryKey: ["public-widget"] });
+    },
+  });
+
+  const deleteWidget = (widget: Widget) => {
+    const confirmed = window.confirm(
+      `Delete widget "${widget.name}"? This will also remove its public widget URL and saved widget events.`,
+    );
+
+    if (confirmed) {
+      deleteMutation.mutate(widget.id);
+    }
+  };
 
   return (
     <div className="widgets-layout">
@@ -637,10 +762,19 @@ function WidgetManager({ token, widgets }: { token: string; widgets: Widget[] })
                 className="icon-button command-button"
                 type="button"
                 onClick={() => demoMutation.mutate(widget.id)}
-                disabled={demoMutation.isPending}
+                disabled={demoMutation.isPending || deleteMutation.isPending}
               >
                 <Wand2 size={16} />
                 Demo
+              </button>
+              <button
+                className="icon-button danger-button"
+                type="button"
+                onClick={() => deleteWidget(widget)}
+                disabled={deleteMutation.isPending || demoMutation.isPending}
+              >
+                <Trash2 size={16} />
+                Delete
               </button>
             </div>
           </article>
@@ -648,6 +782,7 @@ function WidgetManager({ token, widgets }: { token: string; widgets: Widget[] })
 
         {!widgets.length && <EmptyState icon={<Wand2 size={22} />} label="No widgets" />}
       </div>
+      {deleteMutation.error && <p className="form-error">{deleteMutation.error.message}</p>}
     </div>
   );
 }
@@ -744,7 +879,9 @@ function WidgetRenderer({
 
   if (widget.type === "LIKE_GOAL") {
     const payload = latestEvent?.payload ?? {};
-    const currentLikes = Number(payload.currentLikes ?? 0);
+    const currentLikes = Number(
+      payload.currentLikes ?? widget.currentStream?.totalLikes ?? 0,
+    );
     const targetLikes = Number(payload.targetLikes ?? widget.settings?.likeTarget ?? 1000);
     const progress = Math.min(Math.round((currentLikes / targetLikes) * 100), 100);
 

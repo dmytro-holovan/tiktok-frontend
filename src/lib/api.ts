@@ -49,6 +49,8 @@ export interface LiveStream {
   platform: Platform;
   status: StreamStatus;
   externalRoomId?: string | null;
+  totalLikes: number;
+  lastLikeEventAt?: string | null;
   platformAccount?: PlatformAccount;
   createdAt: string;
   updatedAt: string;
@@ -65,6 +67,8 @@ export interface StreamState {
   reconnectScheduled: boolean;
   reconnectAttempts: number;
   maxReconnectAttempts: number;
+  totalLikes: number;
+  lastLikeEventAt?: string | null;
   lastConnectedAt?: string | null;
   lastDisconnectedAt?: string | null;
   lastReconnectAt?: string | null;
@@ -94,6 +98,12 @@ export interface PublicWidget {
     id: string;
     displayName: string;
   };
+  currentStream?: {
+    id: string;
+    status: StreamStatus;
+    totalLikes: number;
+    lastLikeEventAt?: string | null;
+  } | null;
 }
 
 export interface WidgetEvent {
@@ -186,6 +196,20 @@ export const api = {
       token,
     ),
 
+  updatePlatformAccount: (
+    token: string,
+    platformAccountId: string,
+    body: { handle?: string; displayName?: string },
+  ) =>
+    request<PlatformAccount>(
+      `/streamers/me/platform-accounts/${platformAccountId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      },
+      token,
+    ),
+
   streams: (token: string) => request<LiveStream[]>("/streams", {}, token),
 
   connectStream: (token: string, platformAccountId: string) =>
@@ -230,6 +254,15 @@ export const api = {
       `/widgets/${widgetId}/demo`,
       {
         method: "POST",
+      },
+      token,
+    ),
+
+  deleteWidget: (token: string, widgetId: string) =>
+    request<Widget>(
+      `/widgets/${widgetId}`,
+      {
+        method: "DELETE",
       },
       token,
     ),

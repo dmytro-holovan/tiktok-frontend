@@ -375,6 +375,24 @@ button {
   gap: 3px;
 }
 
+.account-row {
+  align-items: center;
+}
+
+.account-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.account-edit-form {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
 .row-item strong,
 .widget-card h3 {
   color: var(--text-strong);
@@ -507,7 +525,8 @@ button {
 
 .widget-actions {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -659,9 +678,10 @@ button {
   .metrics-grid,
   .content-grid,
   .widget-grid,
-  .state-grid,
-  .inline-form,
-  .widget-form {
+    .state-grid,
+    .inline-form,
+    .account-edit-form,
+    .widget-form {
     grid-template-columns: 1fr;
   }
 
